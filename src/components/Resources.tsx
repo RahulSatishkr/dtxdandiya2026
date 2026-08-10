@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import { FaMapMarkerAlt, FaTicketAlt, FaMusic } from 'react-icons/fa';
-import { GiOwl } from 'react-icons/gi';
 
 interface Contact {
   position: string;
@@ -29,19 +28,15 @@ const contacts: Contact[] = [
 
 export default function Resources() {
   return (
-    <div className="relative py-20 overflow-hidden bg-[#ffb1ba]">
+    <div className="homepage-section relative overflow-hidden bg-[#050507]">
       {/* Background Effects */}
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[#183331] [radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-emerald-900/20 via-black to-black"></div>
-      </div>
-
       {/* Content Container */}
       <div className="relative z-10 max-w-7xl mx-auto px-4">
         {/* Title */}
-        <h2 className="text-6xl md:text-7xl font-edwardian text-center text-white mb-16 glow-text-intense mx-auto"
-          style={{ wordSpacing: '0.1em' }}>
-        Concierge Desk
-        </h2>
+        <header className="homepage-section-header">
+          <p>Weekend essentials</p>
+          <h2>Concierge Desk</h2>
+        </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Quick Contact Section */}
@@ -51,9 +46,9 @@ export default function Resources() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
-            <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-[#ffb1ba]-500/20">
+            <div className="resource-panel">
               {/* Section Title */}
-              <h3 className="text-5xl font-edwardian text-[#ffb1ba] mb-8 text-center">
+              <h3 className="resource-panel-title">
                 Quick Contact
               </h3>
 
@@ -98,8 +93,8 @@ export default function Resources() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
           >
-            <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-[#ffb1ba]-500/20">
-              <h3 className="text-5xl font-edwardian text-[#ffb1ba] mb-8 text-center">
+            <div className="resource-panel">
+              <h3 className="resource-panel-title">
                 Afterparty Details
               </h3>
 
@@ -145,7 +140,7 @@ export default function Resources() {
                   <div>
                     <h4 className="text-[#ffb1ba] font-cormorant text-xl mb-2">Don't Forget</h4>
                     <p className="text-[#ffb1ba]/80 font-cormorant">
-                      Your best dance moves 💃🕺
+                      Your best dance moves
                     </p>
                   </div>
                 </motion.div>

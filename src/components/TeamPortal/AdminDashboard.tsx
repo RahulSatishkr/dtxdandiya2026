@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../../config/firebase';
 import { ref, onValue, update, get, set } from 'firebase/database';
-import { TEAM_DISPLAY_NAMES, INITIAL_LIAISONS, GENERIC_SCHEDULES, INITIAL_SCHEDULE } from '../../config/initializeDatabase';
+import { TEAM_DISPLAY_NAMES, INITIAL_LIAISONS, GENERIC_SCHEDULES, INITIAL_SCHEDULE, createInitialTeamData } from '../../config/initializeDatabase';
 import type { TeamInfo, TeamId, DashboardTeamId, Schedule, ScheduleEvent } from '../../types/team';
-import { FiEdit2, FiTrash2, FiSend, FiAlertCircle, FiCheck, FiX, FiEye } from 'react-icons/fi';
+import { INITIAL_JUDGES_SCHEDULE, type JudgesSchedule } from '../../config/judgesSchedule';
+import { FiEdit2, FiTrash2, FiSend, FiAlertCircle, FiCheck, FiX, FiEye, FiChevronUp, FiChevronDown, FiPlus, FiSave } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -20,7 +21,9 @@ interface AnnouncementFormData {
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'announcements' | 'information' | 'tech-time-video' | 'schedule' | 'reports'>('announcements');
-  const [teamData, setTeamData] = useState<Record<TeamId, TeamInfo>>({} as Record<TeamId, TeamInfo>);
+  const [teamData, setTeamData] = useState<Record<TeamId, TeamInfo>>(() => ({
+    texas: createInitialTeamData('texas') as TeamInfo,
+  } as Record<TeamId, TeamInfo>));
   const [selectedTeams, setSelectedTeams] = useState<TeamId[]>([]);
   const [updateMessage, setUpdateMessage] = useState<string>('');
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '' });
@@ -39,18 +42,43 @@ const AdminDashboard: React.FC = () => {
     timestamp: number;
     teamId: TeamId;
   }>>([]);
+  const [judgesSchedule, setJudgesSchedule] = useState<JudgesSchedule>(() => ({
+    friday: INITIAL_JUDGES_SCHEDULE.friday.map((event) => ({ ...event })),
+    saturday: INITIAL_JUDGES_SCHEDULE.saturday.map((event) => ({ ...event })),
+  }));
+  const [isSavingJudgesSchedule, setIsSavingJudgesSchedule] = useState(false);
+  const [selectedScheduleTarget, setSelectedScheduleTarget] = useState<'judges' | TeamId>('texas');
+  const [techVideoFeedback, setTechVideoFeedback] = useState<Partial<Record<TeamId, 'published' | 'error'>>>({});
+  const [techVideoDrafts, setTechVideoDrafts] = useState<Partial<Record<TeamId, string>>>({});
+
+  const getTechVideoInputValue = (teamId: TeamId) => {
+    const value = techVideoDrafts[teamId] ?? teamData[teamId]?.techVideo?.driveUrl ?? '';
+    return /^publishing(?:\.{3}|…)?$/i.test(value.trim()) ? '' : value;
+  };
 
   useEffect(() => {
     const teamsRef = ref(db, 'teams');
     const unsubscribe = onValue(teamsRef, (snapshot) => {
       if (snapshot.exists()) {
-        const data = snapshot.val();
+        const data = snapshot.val() as Record<TeamId, TeamInfo>;
+        if (!data.texas) data.texas = createInitialTeamData('texas') as TeamInfo;
         console.log('Received teams data:', data);
         setTeamData(data);
+      } else {
+        setTeamData({ texas: createInitialTeamData('texas') as TeamInfo } as Record<TeamId, TeamInfo>);
       }
     });
 
     return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const judgesScheduleRef = ref(db, 'portalSchedules/judges');
+    return onValue(judgesScheduleRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setJudgesSchedule(snapshot.val() as JudgesSchedule);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -94,6 +122,7 @@ const AdminDashboard: React.FC = () => {
 
   const handleLogout = () => {
     sessionStorage.removeItem('team');
+    sessionStorage.removeItem('portalRole');
     navigate('/team-portal/login');
   };
 
@@ -368,25 +397,47 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handlePublishTechVideo = async (teamId: TeamId) => {
+    setTechVideoFeedback((current) => ({ ...current, [teamId]: undefined }));
     try {
       const teamRef = ref(db, `teams/${teamId}/techVideo`);
-      const snapshot = await get(teamRef);
-      const currentData = snapshot.val() || {};
+      const localVideo = teamData[teamId]?.techVideo;
+      const draftUrl = getTechVideoInputValue(teamId);
       
-      if (!currentData.driveUrl) {
-        toast.error('Please add a video link before publishing');
+      if (!/^https?:\/\//i.test(draftUrl.trim())) {
+        setTechVideoFeedback((current) => ({ ...current, [teamId]: 'error' }));
+        toast.error('Please paste a complete Google Drive link before publishing');
         return;
       }
 
-      await set(teamRef, {
-        ...currentData,
+      const publishRequest = set(teamRef, {
+        ...localVideo,
+        driveUrl: draftUrl,
         title: 'Tech Time Video',
         isPublished: true
       });
+      const publishTimeout = new Promise<never>((_, reject) => {
+        window.setTimeout(() => reject(new Error('Publishing timed out')), 8000);
+      });
+
+      await Promise.race([publishRequest, publishTimeout]);
+
+      setTeamData((current) => ({
+        ...current,
+        [teamId]: {
+          ...current[teamId],
+          techVideo: {
+            ...current[teamId].techVideo,
+            driveUrl: draftUrl,
+            isPublished: true,
+          },
+        },
+      }));
+      setTechVideoFeedback((current) => ({ ...current, [teamId]: 'published' }));
       
-      toast.success('Tech video published successfully!');
+      toast.success('Published to the team portal');
     } catch (error) {
       console.error('Error publishing tech video:', error);
+      setTechVideoFeedback((current) => ({ ...current, [teamId]: 'error' }));
       toast.error('Error publishing tech video');
     }
   };
@@ -399,6 +450,18 @@ const AdminDashboard: React.FC = () => {
         driveUrl: '',
         isPublished: false
       });
+
+      setTeamData((current) => ({
+        ...current,
+        [teamId]: {
+          ...current[teamId],
+          techVideo: {
+            ...current[teamId].techVideo,
+            driveUrl: '',
+            isPublished: false,
+          },
+        },
+      }));
       
       toast.success('Tech video removed successfully!');
     } catch (error) {
@@ -706,6 +769,145 @@ const AdminDashboard: React.FC = () => {
 
       {activeAnnouncementTab === 'new' ? renderNewAnnouncementSection() : renderManageAnnouncementsSection()}
                       </div>
+  );
+
+  const updateJudgeEvent = (
+    day: keyof JudgesSchedule,
+    index: number,
+    field: keyof ScheduleEvent,
+    value: string
+  ) => {
+    setJudgesSchedule((current) => ({
+      ...current,
+      [day]: current[day].map((event, eventIndex) =>
+        eventIndex === index ? { ...event, [field]: value } : event
+      ),
+    }));
+  };
+
+  const addJudgeEvent = (day: keyof JudgesSchedule) => {
+    setJudgesSchedule((current) => ({
+      ...current,
+      [day]: [...current[day], { time: '', event: '', location: '' }],
+    }));
+  };
+
+  const removeJudgeEvent = (day: keyof JudgesSchedule, index: number) => {
+    setJudgesSchedule((current) => ({
+      ...current,
+      [day]: current[day].filter((_, eventIndex) => eventIndex !== index),
+    }));
+  };
+
+  const moveJudgeEvent = (day: keyof JudgesSchedule, index: number, direction: -1 | 1) => {
+    setJudgesSchedule((current) => {
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= current[day].length) return current;
+      const nextEvents = [...current[day]];
+      [nextEvents[index], nextEvents[targetIndex]] = [nextEvents[targetIndex], nextEvents[index]];
+      return { ...current, [day]: nextEvents };
+    });
+  };
+
+  const saveJudgesSchedule = async () => {
+    const hasIncompleteEvent = [...judgesSchedule.friday, ...judgesSchedule.saturday]
+      .some(({ time, event, location }) => !time.trim() || !event.trim() || !location.trim());
+
+    if (hasIncompleteEvent) {
+      toast.error('Complete the time, event, and location for every row before saving.');
+      return;
+    }
+
+    setIsSavingJudgesSchedule(true);
+    try {
+      const cleanedSchedule: JudgesSchedule = {
+        friday: judgesSchedule.friday.map((item) => ({
+          time: item.time.trim(), event: item.event.trim(), location: item.location.trim(),
+        })),
+        saturday: judgesSchedule.saturday.map((item) => ({
+          time: item.time.trim(), event: item.event.trim(), location: item.location.trim(),
+        })),
+      };
+      await set(ref(db, 'portalSchedules/judges'), cleanedSchedule);
+      setJudgesSchedule(cleanedSchedule);
+      toast.success('Judges schedule saved.');
+    } catch (error) {
+      console.error('Error saving judges schedule:', error);
+      toast.error('Could not save the judges schedule.');
+    } finally {
+      setIsSavingJudgesSchedule(false);
+    }
+  };
+
+  const renderJudgesScheduleEditor = () => (
+    <div className="bg-black/40 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-red-500/25">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <p className="text-red-300 text-xs uppercase tracking-[0.16em] mb-1">Judges Portal</p>
+          <h3 className="text-2xl font-cormorant text-white">Judges Schedule</h3>
+          <p className="text-white/55 text-sm mt-1">Edit the schedule shown to judges. Changes go live when saved.</p>
+        </div>
+        <button
+          type="button"
+          onClick={saveJudgesSchedule}
+          disabled={isSavingJudgesSchedule}
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white transition-colors"
+        >
+          <FiSave />
+          {isSavingJudgesSchedule ? 'Saving…' : 'Save Changes'}
+        </button>
+      </div>
+
+      <div className="space-y-8">
+        {(['friday', 'saturday'] as const).map((day) => (
+          <section key={day}>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <h4 className="text-xl font-cormorant text-white capitalize">{day}</h4>
+              <button
+                type="button"
+                onClick={() => addJudgeEvent(day)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 text-white/80 hover:text-white hover:border-red-500/50 transition-colors text-sm"
+              >
+                <FiPlus /> Add Event
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {judgesSchedule[day].map((item, index) => (
+                <div key={`${day}-${index}`} className="grid grid-cols-1 md:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1.2fr)_auto] gap-2 p-3 rounded-lg bg-white/[0.035] border border-white/10">
+                  <input
+                    value={item.time}
+                    onChange={(event) => updateJudgeEvent(day, index, 'time', event.target.value)}
+                    aria-label={`${day} event ${index + 1} time`}
+                    placeholder="Time"
+                    className="w-full bg-black/40 border border-white/15 focus:border-red-500/60 rounded-lg p-2.5 text-white outline-none"
+                  />
+                  <input
+                    value={item.event}
+                    onChange={(event) => updateJudgeEvent(day, index, 'event', event.target.value)}
+                    aria-label={`${day} event ${index + 1} name`}
+                    placeholder="Event"
+                    className="w-full bg-black/40 border border-white/15 focus:border-red-500/60 rounded-lg p-2.5 text-white outline-none"
+                  />
+                  <input
+                    value={item.location}
+                    onChange={(event) => updateJudgeEvent(day, index, 'location', event.target.value)}
+                    aria-label={`${day} event ${index + 1} location`}
+                    placeholder="Location"
+                    className="w-full bg-black/40 border border-white/15 focus:border-red-500/60 rounded-lg p-2.5 text-white outline-none"
+                  />
+                  <div className="flex items-center justify-end gap-1">
+                    <button type="button" onClick={() => moveJudgeEvent(day, index, -1)} disabled={index === 0} aria-label="Move event up" className="p-2 text-white/60 hover:text-white disabled:opacity-25"><FiChevronUp /></button>
+                    <button type="button" onClick={() => moveJudgeEvent(day, index, 1)} disabled={index === judgesSchedule[day].length - 1} aria-label="Move event down" className="p-2 text-white/60 hover:text-white disabled:opacity-25"><FiChevronDown /></button>
+                    <button type="button" onClick={() => removeJudgeEvent(day, index)} aria-label="Delete event" className="p-2 text-red-400 hover:text-red-300"><FiTrash2 /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
   );
 
   const renderScheduleSection = (
@@ -1055,6 +1257,10 @@ const AdminDashboard: React.FC = () => {
           )}
           {activeTab === 'tech-time-video' && (
             <div className="mt-6">
+              <div className="mb-6">
+                <h2 className="text-3xl sm:text-4xl font-cormorant text-white">Tech Time Videos</h2>
+                <p className="mt-2 text-sm text-blue-200/60">Add a Google Drive link, then publish it when the recording is ready for the team.</p>
+              </div>
               {Object.keys(teamData).map(teamId => (
                 <div key={teamId} className="mb-8 bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-blue-500/20">
                   <div className="flex justify-between items-center mb-6">
@@ -1062,8 +1268,9 @@ const AdminDashboard: React.FC = () => {
                     <div className="flex items-center gap-2">
                       {teamData[teamId as TeamId]?.techVideo?.isPublished ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-cormorant text-green-400 bg-green-400/10 px-3 py-1 rounded-lg">
-                            Published
+                          <span className="inline-flex items-center gap-2 text-sm font-cormorant text-green-300 bg-green-400/10 border border-green-400/20 px-3 py-2 rounded-lg">
+                            <span className="h-2 w-2 rounded-full bg-green-400" aria-hidden="true" />
+                            Published to team portal
                           </span>
                           <button
                             onClick={() => handleRemoveTechVideo(teamId as TeamId)}
@@ -1084,16 +1291,26 @@ const AdminDashboard: React.FC = () => {
                   </div>
                   <div className="space-y-4">
                                 <div>
-                      <label className="block text-sm font-cormorant font-medium text-blue-300 mb-1">Video Link</label>
+                      <label className="block text-sm font-cormorant font-medium text-blue-300 mb-1">Google Drive Video Link</label>
                                   <input
-                                    type="text"
-                        value={teamData[teamId as TeamId]?.techVideo?.driveUrl || ''}
-                        onChange={(e) => handleUpdateTechVideo(teamId as TeamId, {
-                          driveUrl: e.target.value
-                        })}
+                                    type="url"
+                        value={getTechVideoInputValue(teamId as TeamId)}
+                        onChange={(e) => {
+                          const id = teamId as TeamId;
+                          const driveUrl = e.target.value;
+                          setTechVideoFeedback((current) => ({ ...current, [id]: undefined }));
+                          setTechVideoDrafts((current) => ({ ...current, [id]: driveUrl }));
+                        }}
                         className="w-full bg-black/40 border border-blue-500/30 rounded-lg p-2 text-white"
-                        placeholder="Enter video link"
+                        placeholder="Paste the Google Drive sharing link"
                                   />
+                      <p className="mt-2 text-xs text-blue-200/50">The link is saved when you click Publish.</p>
+                      {techVideoFeedback[teamId as TeamId] === 'published' && (
+                        <p className="mt-3 text-sm font-medium text-green-400" role="status">Published successfully — the video is now available in the team portal.</p>
+                      )}
+                      {techVideoFeedback[teamId as TeamId] === 'error' && (
+                        <p className="mt-3 text-sm font-medium text-red-400" role="alert">The video could not be published. Please check the link and try again.</p>
+                      )}
                                 </div>
                                 </div>
                               </div>
@@ -1103,19 +1320,38 @@ const AdminDashboard: React.FC = () => {
           {activeTab === 'schedule' && (
             <div className="space-y-8">
               <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-blue-500/20">
-                <h3 className="text-2xl font-cormorant text-white mb-6">Show Order Assignment</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {Object.keys(teamData).map(teamId => (
-                    <div key={teamId} className="p-4 bg-black/40 backdrop-blur-sm rounded-lg border border-blue-500/20">
+                <label htmlFor="schedule-target" className="block text-sm font-medium text-blue-300 mb-2">Whose schedule do you want to adjust?</label>
+                <select
+                  id="schedule-target"
+                  value={selectedScheduleTarget}
+                  onChange={(event) => setSelectedScheduleTarget(event.target.value as 'judges' | TeamId)}
+                  className="w-full sm:max-w-sm p-3 bg-black/60 border border-blue-500/30 rounded-lg text-white"
+                >
+                  <option value="judges">Judges</option>
+                  {Object.keys(teamData).map((teamId) => (
+                    <option key={teamId} value={teamId}>{TEAM_DISPLAY_NAMES[teamId as TeamId]}</option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedScheduleTarget === 'judges' ? renderJudgesScheduleEditor() : (() => {
+                const selectedTeamId = selectedScheduleTarget as TeamId;
+                const selectedTeam = teamData[selectedTeamId];
+                if (!selectedTeam) return <p className="text-white/60">This team’s schedule is not available yet.</p>;
+
+                return (
+                  <>
+                    <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-blue-500/20">
+                      <h3 className="text-2xl font-cormorant text-white mb-6">Schedule Settings</h3>
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <h4 className="text-lg text-white font-cormorant">{TEAM_DISPLAY_NAMES[teamId as TeamId]}</h4>
+                        <h4 className="text-lg text-white font-cormorant">{TEAM_DISPLAY_NAMES[selectedTeamId]}</h4>
                         <div className="flex items-center gap-4 w-full sm:w-auto">
                           <select
-                            value={teamData[teamId as TeamId]?.schedule?.showOrder ?? ''}
+                            value={selectedTeam.schedule?.showOrder ?? ''}
                             onChange={(e) => {
                               const showOrder = e.target.value ? parseInt(e.target.value) : null;
                               if (showOrder) {
-                                handleAssignShowOrder(teamId as TeamId, showOrder);
+                                handleAssignShowOrder(selectedTeamId, showOrder);
                               }
                             }}
                             className="w-32 p-2 bg-black/40 border border-blue-500/30 rounded text-white"
@@ -1126,42 +1362,36 @@ const AdminDashboard: React.FC = () => {
                             ))}
                           </select>
                           <button
-                            onClick={() => handleUpdateSchedulePublished(teamId as TeamId, !teamData[teamId as TeamId]?.schedule?.isPublished)}
+                            onClick={() => handleUpdateSchedulePublished(selectedTeamId, !selectedTeam.schedule?.isPublished)}
                             className={`px-4 py-2 rounded-lg transition-colors ${
-                              teamData[teamId as TeamId]?.schedule?.isPublished
+                              selectedTeam.schedule?.isPublished
                                 ? 'bg-green-500/10 hover:bg-green-500/20 text-green-400'
                                 : 'bg-blue-500 hover:bg-blue-600 text-white'
                             }`}
                           >
-                            {teamData[teamId as TeamId]?.schedule?.isPublished ? 'Published' : 'Publish'}
+                            {selectedTeam.schedule?.isPublished ? 'Published' : 'Publish'}
                           </button>
                         </div>
-                        </div>
                       </div>
-                    ))}
-                </div>
-              </div>
+                    </div>
 
-              {/* Schedule Details Section */}
-              {Object.keys(teamData).map(teamId => {
-                if (!teamData[teamId as TeamId]?.schedule?.showOrder) return null;
-                
-                return (
-                  <div key={teamId} className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-blue-500/20">
+                    <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-blue-500/20">
                     <div className="flex justify-between items-center mb-6">
                       <h3 className="text-2xl font-cormorant text-white">
-                        {TEAM_DISPLAY_NAMES[teamId as TeamId]} - Team {teamData[teamId as TeamId]?.schedule?.showOrder}
+                        {TEAM_DISPLAY_NAMES[selectedTeamId]}
+                        {selectedTeam.schedule?.showOrder ? ` — Team ${selectedTeam.schedule.showOrder}` : ''}
                       </h3>
                     </div>
 
-                    {renderScheduleSection(teamId as TeamId, 'friday', 'Friday')}
-                    {renderScheduleSection(teamId as TeamId, 'saturdayTech', 'Saturday Tech Time')}
-                    {renderScheduleSection(teamId as TeamId, 'saturdayPreShow', 'Saturday Pre-Show')}
-                    {renderScheduleSection(teamId as TeamId, 'saturdayShow', 'Saturday Show')}
-                    {renderScheduleSection(teamId as TeamId, 'saturdayPostShow', 'Saturday Post-Show')}
+                    {renderScheduleSection(selectedTeamId, 'friday', 'Friday')}
+                    {renderScheduleSection(selectedTeamId, 'saturdayTech', 'Saturday Tech Time')}
+                    {renderScheduleSection(selectedTeamId, 'saturdayPreShow', 'Saturday Pre-Show')}
+                    {renderScheduleSection(selectedTeamId, 'saturdayShow', 'Saturday Show')}
+                    {renderScheduleSection(selectedTeamId, 'saturdayPostShow', 'Saturday Post-Show')}
                   </div>
+                  </>
                 );
-              })}
+              })()}
                   </div>
                 )}
           {activeTab === 'reports' && (

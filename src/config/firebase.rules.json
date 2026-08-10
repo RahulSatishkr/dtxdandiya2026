@@ -1,6 +1,28 @@
 {
   "rules": {
-    ".read": true,
-    ".write": true
+    ".read": false,
+    ".write": false,
+    "users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": false
+      }
+    },
+    "teams": {
+      "$teamId": {
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'judge' || root.child('users').child(auth.uid).child('role').val() === 'reps' || ((root.child('users').child(auth.uid).child('role').val() === 'team' || root.child('users').child(auth.uid).child('role').val() === 'liaison') && root.child('users').child(auth.uid).child('teamId').val() === $teamId))",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      }
+    },
+    "portalSchedules": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+    },
+    "reports": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      "$reportId": {
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'team' && newData.child('teamId').val() === root.child('users').child(auth.uid).child('teamId').val()"
+      }
+    }
   }
-} 
+}

@@ -28,7 +28,7 @@ const locations = [
 
 export default function Locations() {
   return (
-    <div className="bg-[#183331] relative overflow-hidden py-16">
+    <div className="bg-[#050507] relative overflow-hidden py-16 upside-down-section">
       {/* Title */}
       <h2 className="text-6xl md:text-7xl font-edwardian text-center text-white mb-16 glow-text-intense mx-auto"
           style={{ wordSpacing: '0.1em' }}>        

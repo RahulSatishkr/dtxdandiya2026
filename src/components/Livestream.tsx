@@ -3,10 +3,10 @@ import { motion } from 'framer-motion';
 
 export default function Livestream() {
   return (
-    <div className="bg-[#183331] relative overflow-hidden py-16">
+    <div className="bg-[#050507] relative overflow-hidden py-16 upside-down-section">
       {/* Background Effects */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[#183331]">
+        <div className="absolute inset-0 bg-[#050507]">
           {/*[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#183331] via-[#183331] to-[#183331]*/}
           <div className="absolute inset-0" 
             style={{

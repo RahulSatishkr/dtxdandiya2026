@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { ref, onValue, set, push, serverTimestamp } from 'firebase/database';
 import { db } from '../../config';
 import type { TeamInfo } from '../../types/team';
+import { INITIAL_JUDGES_SCHEDULE, type JudgesSchedule } from '../../config/judgesSchedule';
+import { createInitialTeamData } from '../../config/initializeDatabase';
 import { FaMapMarkerAlt, FaExternalLinkAlt } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { Toaster } from 'react-hot-toast';
 
 type TabType = 'announcements' | 'information' | 'tech-time-video' | 'schedule' | 'report';
 type DashboardTeamId = string | 'admin' | 'judge' | 'reps';
-type UserType = 'team' | 'judge' | 'reps';
+type UserType = 'team' | 'judge' | 'reps' | 'liaison';
 
 interface TabConfig {
   key: TabType;
@@ -25,6 +27,8 @@ export default function Dashboard() {
   const [reportForm, setReportForm] = useState({ description: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userType, setUserType] = useState<UserType>('team');
+  const [judgesScheduleData, setJudgesScheduleData] = useState<JudgesSchedule>(INITIAL_JUDGES_SCHEDULE);
+  const isTeamPortalUser = userType === 'team' || userType === 'liaison';
 
   // Hogwarts House Assignment mapping for team portals
   const hogwartsAssignments: { [key: string]: string } = {
@@ -74,26 +78,9 @@ export default function Dashboard() {
     ]
   };
 
-  const judgesScheduleData = {
-    friday: [
-      { event: "Check-in/Registration", location: "Hotel Lobby", time: "12:00 AM - 3:00 PM" },
-      { event: "Dinner", location: "Lobby", time: "4:00 PM" },
-      { event: "Go Out", location: "Downtown", time: "6:00 PM" },
-    ],
-    saturday: [
-      { event: "Breakfast", location: "Lobby", time: "7:00 AM" },
-      { event: "Mock Deliberations", location: "Boardroom", time: "11:00 AM" },
-      { event: "Lunch", location: "During/After Deliberations", time: "2:00 PM" },
-      { event: "Rep/Judges Photos", location: "Venue", time: "3:40 PM" },
-      { event: "Show", location: "Venue", time: "5:30 PM" },
-      { event: "Show Deliberations", location: "Venue Viewing Room", time: "8:00 PM" },
-      { event: "Judges Meeting/Dinner", location: "Judges Hotel Room", time: "10:00 PM" },
-      { event: "After Party", location: "The Reserve", time: "11:00 PM" }
-    ]
-  };
-
   useEffect(() => {
     const storedTeam = sessionStorage.getItem("team") as DashboardTeamId | null;
+    const storedRole = sessionStorage.getItem('portalRole') as UserType | null;
     
     if (!storedTeam) {
       console.log('No team stored, redirecting to login');
@@ -109,14 +96,53 @@ export default function Dashboard() {
     } else if (storedTeam === 'reps') {
       setUserType('reps');
     } else {
-      setUserType('team');
+      setUserType(storedRole === 'liaison' ? 'liaison' : 'team');
+      if (storedTeam === 'texas') {
+        const texasFallback = createInitialTeamData('texas') as TeamInfo;
+        setActiveTab('information');
+        setTeamInfo(texasFallback);
+        setScheduleData(texasFallback.schedule);
+      }
       // Only fetch from Firebase for actual teams
     const teamRef = ref(db, `teams/${storedTeam}`);
     const unsubscribe = onValue(teamRef, (snapshot) => {
       if (snapshot.exists()) {
-          const data = snapshot.val();
-          setTeamInfo(data);
-          setScheduleData(data.schedule || null);
+          const data = snapshot.val() as Partial<TeamInfo>;
+          if (storedTeam === 'texas') {
+            const fallback = createInitialTeamData('texas') as TeamInfo;
+            const resolvedData: TeamInfo = {
+              ...fallback,
+              ...data,
+              announcements: data.announcements || fallback.announcements,
+              information: {
+                ...fallback.information,
+                ...data.information,
+                liaisons: data.information?.liaisons || fallback.information.liaisons,
+                tech: { ...fallback.information.tech, ...data.information?.tech },
+                venue: { ...fallback.information.venue, ...data.information?.venue },
+                hotel: { ...fallback.information.hotel, ...data.information?.hotel },
+              },
+              techVideo: { ...fallback.techVideo, ...data.techVideo },
+              schedule: {
+                ...fallback.schedule,
+                ...data.schedule,
+                saturdayPostShow: {
+                  ...fallback.schedule.saturdayPostShow,
+                  ...data.schedule?.saturdayPostShow,
+                },
+              },
+              nearbyLocations: data.nearbyLocations || fallback.nearbyLocations,
+            };
+            setTeamInfo(resolvedData);
+            setScheduleData(resolvedData.schedule);
+          } else {
+            setTeamInfo(data as TeamInfo);
+            setScheduleData(data.schedule || null);
+          }
+      } else if (storedTeam === 'texas') {
+          const texasData = createInitialTeamData('texas') as TeamInfo;
+          setTeamInfo(texasData);
+          setScheduleData(texasData.schedule);
       }
       }, (error) => {
         console.error('Error loading team data:', error);
@@ -125,6 +151,15 @@ export default function Dashboard() {
     return () => unsubscribe();
     }
   }, [navigate]);
+
+  useEffect(() => {
+    const judgesScheduleRef = ref(db, 'portalSchedules/judges');
+    return onValue(judgesScheduleRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setJudgesScheduleData(snapshot.val() as JudgesSchedule);
+      }
+    });
+  }, []);
 
   // Move debug logging to a separate effect
   useEffect(() => {
@@ -210,8 +245,32 @@ export default function Dashboard() {
     );
   };
 
+  const renderJudgeScheduleSection = (
+    title: string,
+    events: Array<{ time: string; event: string; location: string }>
+  ) => (
+    <section className="judge-schedule-day">
+      <header className="judge-schedule-heading">
+        <h3>{title}</h3>
+        <span>{events.length} events</span>
+      </header>
+      <ol className="judge-schedule-list">
+        {events.map((item) => (
+          <li key={`${title}-${item.time}-${item.event}`} className="judge-schedule-row">
+            <time>{item.time}</time>
+            <span className="judge-schedule-marker" aria-hidden="true" />
+            <div>
+              <h4>{item.event}</h4>
+              <p>{item.location}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+
   const renderSchedule = () => {
-    if (userType === 'team') {
+    if (isTeamPortalUser) {
       // Existing team schedule rendering logic
       if (!scheduleData) {
         return (
@@ -256,20 +315,33 @@ export default function Dashboard() {
           )}
         </div>
       );
-    } else {
-      // Render static schedule for judges and reps
-      const scheduleToUse = userType === 'reps' ? repsScheduleData : judgesScheduleData;
+    } else if (userType === 'judge') {
       return (
-        <div className="space-y-8">
-          {renderScheduleSection("Friday", scheduleToUse.friday)}
-          {renderScheduleSection("Saturday", scheduleToUse.saturday)}
+        <div className="judge-schedule">
+          <div className="judge-schedule-intro">
+            <p className="judge-eyebrow">Competition weekend</p>
+            <h2>Judges Schedule</h2>
+            <p>All times are local. Please arrive a few minutes before each scheduled activity.</p>
+          </div>
+          <div className="judge-schedule-days">
+            {renderJudgeScheduleSection("Friday", judgesScheduleData.friday)}
+            {renderJudgeScheduleSection("Saturday", judgesScheduleData.saturday)}
+          </div>
         </div>
       );
     }
+
+    return (
+      <div className="space-y-8">
+        {renderScheduleSection("Friday", repsScheduleData.friday)}
+        {renderScheduleSection("Saturday", repsScheduleData.saturday)}
+      </div>
+    );
   };
 
   const handleLogout = () => {
     sessionStorage.removeItem("team");
+    sessionStorage.removeItem('portalRole');
     navigate("/team-portal/login");
   };
 
@@ -307,6 +379,13 @@ export default function Dashboard() {
         { key: 'schedule', label: 'Schedule' },
         { key: 'report', label: 'Report' }
       ];
+    } else if (userType === 'liaison') {
+      return [
+        { key: 'announcements', label: 'Announcements' },
+        { key: 'information', label: 'Information' },
+        { key: 'tech-time-video', label: 'Tech Time Video' },
+        { key: 'schedule', label: 'Schedule' },
+      ];
     } else {
       return [
         { key: 'information', label: 'Information' },
@@ -317,7 +396,7 @@ export default function Dashboard() {
 
   // Get header title based on user type
   const getHeaderTitle = () => {
-    if (userType === 'team' && teamInfo?.displayName) {
+    if (isTeamPortalUser && teamInfo?.displayName) {
       return teamInfo.displayName;
     } else if (userType === 'judge') {
       return 'Judges Portal';
@@ -476,7 +555,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-3 p-3 bg-blue-500/5 rounded-lg">
                 <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-300" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2a1 1 0 00-1-1H7a1 1 0 00-1 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1V4zm3 1h6v7H7V5z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2a1 1 0 00-1-1H7a1 1 0 00-1 1v2a1 1 0 01-1-1V4zm3 1h6v7H7V5z" clipRule="evenodd" />
                   </svg>
                 </div>
                 <div>
@@ -531,43 +610,57 @@ export default function Dashboard() {
       );
     }
 
+    if (userType === 'judge') {
+      const judgeHighlights = [
+        { label: 'Check-in', day: 'Friday', time: '12:00–3:00 PM', dateTime: '2027-02-05T12:00:00-06:00', detail: 'Hotel Lobby' },
+        { label: 'Showtime', day: 'Saturday', time: '5:30 PM', dateTime: '2027-02-06T17:30:00-06:00', detail: 'Marshall Arts Center' },
+        { label: 'Judges Meeting', day: 'Saturday', time: '10:00 PM', dateTime: '2027-02-06T22:00:00-06:00', detail: 'Judges Room' },
+      ];
+
+      return (
+        <div className="judge-information space-y-8">
+          <section className="judge-briefing">
+            <div className="judge-briefing-copy">
+              <span className="judge-eyebrow">DTX Dandiya 2027</span>
+              <h2>Judges Information</h2>
+              <p>Everything you need for competition weekend, including key times, venue details, and hotel information.</p>
+            </div>
+          </section>
+
+          <section className="judge-timeline" aria-label="Judge schedule timeline">
+            {judgeHighlights.map((item) => (
+              <article key={item.label} className="judge-timeline-event">
+                <span className="judge-timeline-dot" aria-hidden="true" />
+                <div className="judge-timeline-content">
+                  <p className="judge-card-label">{item.label}</p>
+                  <h3>
+                    <span>{item.day}</span>
+                    <time dateTime={item.dateTime}>{item.time}</time>
+                  </h3>
+                  <p className="judge-card-detail">{item.detail}</p>
+                </div>
+              </article>
+            ))}
+          </section>
+
+          <section className="judge-info-grid">
+            {renderVenueInfoSection()}
+            {renderHotelInfoSection()}
+          </section>
+
+          <section className="judge-nearby-section">
+            {renderNearbyPlacesSection(true)}
+          </section>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-8">
-        {/* Liaison Information Section for Teams */}
-        {userType === 'team' && teamInfo?.information?.liaisons && (
-          <div className="bg-black/40 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-blue-500/20">
-            <h3 className="text-xl sm:text-2xl font-cormorant text-white mb-4">Liaisons Information</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {teamInfo.information.liaisons.map((liaison, index) => (
-                <div key={index} className="flex items-center gap-4 p-3 bg-blue-500/5 rounded-lg">
-                  <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-300" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-white font-medium font-sans truncate">{liaison.name}</p>
-                    {liaison.phone && (
-                      <a 
-                        href={`tel:${liaison.phone.replace(/[^0-9]/g, '')}`}
-                        className="text-blue-300 hover:text-blue-200 transition-colors flex items-center gap-2 text-sm font-sans"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                        </svg>
-                        {liaison.phone}
-                      </a>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Original content for other user types */}
+        {/* Team information overview */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div className="bg-black/40 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-blue-500/20">
+          <div className="space-y-6">
+            <div className="bg-black/40 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-blue-500/20">
             <h3 className="text-xl sm:text-2xl font-cormorant text-white mb-4">General Information</h3>
             <div className="space-y-3">
               <div className="flex items-center gap-3 p-3 bg-blue-500/5 rounded-lg">
@@ -637,120 +730,70 @@ export default function Dashboard() {
                 <p className="text-red-200 text-sm">*There will be NO RIGGING this year at Marshall Arts Center*</p>
               </div>
             </div>
-          </div>
-
-          <div className="space-y-6">
+            </div>
             {renderVenueInfoSection()}
-            {renderHotelInfoSection()}
-            {renderLivestreamSection()}
           </div>
-        </div>
 
-        <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-blue-500/20">
-          <h3 className="text-xl sm:text-2xl font-cormorant text-white mb-6">Nearby Places</h3>
           <div className="space-y-6">
-            <div>
-              <h4 className="text-xl font-cormorant text-white mb-4">Food Options</h4>
-              <div className="space-y-4">
-                <div className="flex items-start space-x-2">
-                  <FaMapMarkerAlt className="text-blue-300 mt-1 flex-shrink-0" />
-                  <div>
-                    <p className="text-white font-sans">Chick-fil-A</p>
-                    <a 
-                      href="https://maps.google.com/?q=13347+Montfort+Dr,+Dallas,+TX+75240"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-300 hover:text-blue-200 text-sm font-sans flex items-center gap-1"
-                    >
-                      13347 Montfort Dr, Dallas, TX 75240
-                      <FaExternalLinkAlt className="text-xs" />
-                    </a>
-                  </div>
-                </div>
-                
-                <div className="flex items-start space-x-2">
-                  <FaMapMarkerAlt className="text-blue-300 mt-1 flex-shrink-0" />
-                  <div>
-                    <p className="text-white font-sans">In-N-Out Burger</p>
-                    <a 
-                      href="https://maps.google.com/?q=7940+Belt+Line+Rd,+Dallas,+TX+75254"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-300 hover:text-blue-200 text-sm font-sans flex items-center gap-1"
-                    >
-                      7940 Belt Line Rd, Dallas, TX 75254
-                      <FaExternalLinkAlt className="text-xs" />
-                    </a>
-                  </div>
-                </div>
-              </div>
+            <div className="rounded-xl border border-red-500/25 bg-red-950/20 p-4 sm:p-5">
+              <h3 className="text-lg sm:text-xl font-cormorant text-white">
+                Here’s the livestream link to share with your family and friends
+              </h3>
+              <a
+                href="https://www.youtube.com/live/M6yG0KuC7gw?si=5mOY4XecCcl2sc5j"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 block break-all text-sm text-red-300 underline decoration-red-500/40 underline-offset-4 hover:text-red-200 font-sans"
+              >
+                https://www.youtube.com/live/M6yG0KuC7gw?si=5mOY4XecCcl2sc5j
+              </a>
             </div>
 
-            <div>
-              <h4 className="text-xl font-cormorant text-white mb-4">Prop Repair Places</h4>
-              <div className="space-y-4">
-                <div className="flex items-start space-x-2">
-                  <FaMapMarkerAlt className="text-blue-300 mt-1 flex-shrink-0" />
-                  <div>
-                    <p className="text-white font-sans">At Home</p>
-                    <a 
-                      href="https://maps.google.com/?q=13710+Dallas+Pkwy,+Dallas,+TX+75240"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-300 hover:text-blue-200 text-sm font-sans flex items-center gap-1"
-                    >
-                      13710 Dallas Pkwy, Dallas, TX 75240
-                      <FaExternalLinkAlt className="text-xs" />
-                    </a>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-2">
-                  <FaMapMarkerAlt className="text-blue-300 mt-1 flex-shrink-0" />
-                  <div>
-                    <p className="text-white font-sans">Hobby Lobby</p>
-                    <a 
-                      href="https://maps.google.com/?q=14555+Dallas+Pkwy,+Dallas,+TX+75254"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-300 hover:text-blue-200 text-sm font-sans flex items-center gap-1"
-                    >
-                      14555 Dallas Pkwy, Dallas, TX 75254
-                      <FaExternalLinkAlt className="text-xs" />
-                    </a>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-2">
-                  <FaMapMarkerAlt className="text-blue-300 mt-1 flex-shrink-0" />
-                  <div>
-                    <p className="text-white font-sans">Joann Fabrics and Crafts</p>
-                    <a 
-                      href="https://maps.google.com/?q=13710+Dallas+Pkwy,+Dallas,+TX+75240"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-300 hover:text-blue-200 text-sm font-sans flex items-center gap-1"
-                    >
-                      13710 Dallas Pkwy, Dallas, TX 75240
-                      <FaExternalLinkAlt className="text-xs" />
-                    </a>
-                  </div>
+            {isTeamPortalUser && teamInfo?.information?.liaisons && (
+              <div className="bg-black/40 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-blue-500/20">
+                <h3 className="text-xl sm:text-2xl font-cormorant text-white mb-4">Liaisons Information</h3>
+                <div className="space-y-3">
+                  {teamInfo.information.liaisons.map((liaison, index) => (
+                    <div key={index} className="flex items-center gap-4 p-3 bg-blue-500/5 rounded-lg">
+                      <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-300" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-white font-medium font-sans truncate">{liaison.name}</p>
+                        {liaison.phone && (
+                          <a
+                            href={`tel:${liaison.phone.replace(/[^0-9]/g, '')}`}
+                            className="text-blue-300 hover:text-blue-200 transition-colors flex items-center gap-2 text-sm font-sans"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                            </svg>
+                            {liaison.phone}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
+            )}
+            {renderHotelInfoSection()}
           </div>
         </div>
+
       </div>
     );
   };
 
   const renderContent = () => {
-    if (userType === 'team' && !teamInfo) {
+    if (isTeamPortalUser && !teamInfo) {
       return null;
     }
 
     const renderAnnouncementsTab = () => {
-      if (userType !== 'team' || !teamInfo) return null;
+      if (!isTeamPortalUser || !teamInfo) return null;
       return (
         <div>
           <h2 className="text-3xl sm:text-4xl font-cormorant text-white mb-4 sm:mb-6">Announcements</h2>
@@ -774,25 +817,29 @@ export default function Dashboard() {
     };
 
     const renderTechVideoTab = () => {
-      if (userType !== 'team' || !teamInfo) return null;
+      if (!isTeamPortalUser || !teamInfo) return null;
       return (
-        <div>
-          <h2 className="text-3xl sm:text-4xl font-cormorant text-white mb-4 sm:mb-6"
-          style={{ wordSpacing: '0.1em' }}>
-            Tech Time Video
-          </h2>
+        <div className="tech-video-page">
+          <header>
+            <h2>Tech Time Video</h2>
+            <p>Review your team’s recording in Google Drive at its original uploaded quality.</p>
+          </header>
           {teamInfo.techVideo?.isPublished && teamInfo.techVideo.driveUrl ? (
-            <div className="p-4 sm:p-8 bg-black/40 backdrop-blur-sm rounded-xl border border-blue-500/20">
-              <div className="flex flex-col items-center justify-center gap-6">
+            <div className="tech-video-resource">
+              <div>
+                <p className="tech-video-label">Google Drive</p>
+                <h3>Your team recording</h3>
+                <p>Open the file to watch it in Drive or download the original video for a closer review.</p>
+              </div>
                 <a
                   href={teamInfo.techVideo.driveUrl.startsWith('http') ? teamInfo.techVideo.driveUrl : `https://${teamInfo.techVideo.driveUrl}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full sm:w-auto group flex items-center justify-center gap-3 px-6 py-3 bg-blue-500 hover:bg-blue-600 rounded-lg transition-all duration-300 transform hover:scale-105"
+                  className="tech-video-link"
                 >
-                  <span className="text-white text-lg font-sans">Access Video</span>
+                  <span>View or Download Video</span>
                   <svg 
-                    className="w-6 h-6 text-white transition-transform duration-300 group-hover:translate-x-1" 
+                    className="w-5 h-5" 
                     fill="none" 
                     viewBox="0 0 24 24" 
                     stroke="currentColor"
@@ -805,11 +852,10 @@ export default function Dashboard() {
                     />
                   </svg>
                 </a>
-              </div>
             </div>
           ) : (
-            <div className="p-4 sm:p-6 bg-black/40 backdrop-blur-sm rounded-xl border border-blue-500/20">
-              <p className="text-blue-200/60 font-sans text-center">Tech time video will be available soon.</p>
+            <div className="tech-video-empty">
+              <p>Your team’s recording will appear here when it is ready.</p>
             </div>
           )}
         </div>
@@ -819,39 +865,39 @@ export default function Dashboard() {
     const renderReportTab = () => {
       if (userType !== 'team') return null;
       return (
-        <div>
-          <h2 className="text-3xl sm:text-4xl font-cormorant text-white mb-4 sm:mb-6"
-          style={{ wordSpacing: '0.1em' }}>
-            Anonymous Report
-          </h2>
-          <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-blue-500/20">
-            <div className="max-w-2xl mx-auto">
-              <div className="mb-6">
-                <p className="text-blue-200 font-sans mb-4">
-                  This form is for reporting any concerns, SA incidents, or feedback 100% anonymously. Your submission will be sent directly to the DTX Dandiya Directors for review.
-                </p>
-              </div>
+        <div className="report-page">
+          <header className="report-header">
+            <h2>Anonymous Report</h2>
+            <p>Use this form to share a concern, report an incident, or provide feedback to the DTX Dandiya Directors.</p>
+          </header>
 
-              <form onSubmit={handleReportSubmit} className="space-y-6">
-                <div>
-                  <label htmlFor="description" className="block text-white font-sans mb-2">
-                    Description
-                  </label>
+          <div className="report-card">
+            <div className="report-privacy-note">
+              <div>
+                <strong>About your privacy</strong>
+                <p>No name, email, or contact information is requested. Reports are reviewed only by DTX Dandiya Directors.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleReportSubmit} className="report-form">
+                <div className="report-field">
+                  <label htmlFor="description">Report details</label>
                   <textarea
                     id="description"
                     value={reportForm.description}
                     onChange={(e) => setReportForm({ description: e.target.value })}
-                    placeholder="Please provide details of your report..."
-                    className="w-full h-48 px-4 py-3 bg-black/40 border border-blue-500/30 rounded-lg text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-500/60 transition-colors font-sans"
+                    placeholder="Provide as much detail as you feel comfortable sharing."
+                    maxLength={3000}
                     required
                   />
                 </div>
 
-                <div className="flex justify-end">
+                <div className="report-actions">
+                  <p>{reportForm.description.length} / 3000 characters · Reports cannot be edited after submission.</p>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className={`px-6 py-3 bg-blue-500 hover:bg-blue-600 rounded-lg text-white font-sans transition-all duration-300 flex items-center gap-2 ${
+                    className={`${
                       isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
                   >
@@ -873,8 +919,7 @@ export default function Dashboard() {
                     )}
                   </button>
                 </div>
-              </form>
-            </div>
+            </form>
           </div>
         </div>
       );
@@ -919,7 +964,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-3 p-3 bg-blue-500/5 rounded-lg">
           <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-300" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2a1 1 0 00-1-1H7a1 1 0 00-1 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1V4zm3 1h6v7H7V5z" clipRule="evenodd" />
+              <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2a1 1 0 00-1-1H7a1 1 0 00-1 1v2a1 1 0 01-1-1V4zm3 1h6v7H7V5z" clipRule="evenodd" />
             </svg>
           </div>
           <div>
@@ -948,17 +993,6 @@ export default function Dashboard() {
                 <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
               </svg>
             </a>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 p-3 bg-blue-500/5 rounded-lg">
-          <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-300" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-            </svg>
-          </div>
-          <div>
-            <h4 className="text-blue-300 text-sm font-sans font-medium">Seating Capacity</h4>
-            <p className="text-white font-sans">600 seat auditorium</p>
           </div>
         </div>
       </div>
@@ -1024,7 +1058,7 @@ export default function Dashboard() {
     </div>
   );
 
-  const renderNearbyPlacesSection = () => (
+  const renderNearbyPlacesSection = (hidePropRepair = false) => (
     <div className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-blue-500/20">
       <h3 className="text-xl sm:text-2xl font-cormorant text-white mb-6">Nearby Places</h3>
       <div className="space-y-6">
@@ -1065,7 +1099,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div>
+        {!hidePropRepair && <div>
           <h4 className="text-xl font-cormorant text-white mb-4">Prop Repair Places</h4>
           <div className="space-y-4">
             <div className="flex items-start space-x-2">
@@ -1116,41 +1150,51 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );
 
-  if (!teamId || (userType === 'team' && !teamInfo)) {
+  if (!teamId || (isTeamPortalUser && !teamInfo)) {
     return null;
   }
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden">
+    <div className={`min-h-screen bg-black relative overflow-hidden ${teamId === 'texas' ? 'texas-team-portal' : ''}`}>
       <Toaster position="top-right" />
       
       {/* Background Effects */}
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-black to-black">
+      {teamId !== 'texas' && <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-red-950/30 via-black to-black">
           <div className="absolute inset-0" 
             style={{
               background: `
-                radial-gradient(circle at 20% 30%, rgba(29, 78, 216, 0.15), transparent 70%),
-                radial-gradient(circle at 80% 70%, rgba(29, 78, 216, 0.15), transparent 70%)
+                radial-gradient(circle at 20% 30%, rgba(141, 0, 23, 0.18), transparent 70%),
+                radial-gradient(circle at 80% 70%, rgba(239, 35, 60, 0.1), transparent 70%)
               `
             }}
           />
         </div>
-      </div>
+      </div>}
 
       <div className="relative z-10 container mx-auto px-3 sm:px-4 py-8 sm:py-12">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 sm:mb-12">
+        <div className={`flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 sm:mb-12 ${teamId === 'texas' ? 'texas-dashboard-header' : ''}`}>
           <div className="flex flex-col items-center sm:items-start gap-2">
-            <h1 className="text-4xl md:text-5xl font-cormorant text-white glow-text-intense text-center sm:text-left">
-              {getHeaderTitle()}
-            </h1>
-            {userType === 'team' && hogwartsHouse && (
+            {teamId === 'texas' ? (
+              <div className="texas-brand-lockup">
+                <img src="/assets/team/dsd-logo.png" alt="Dirty South Dandiya logo" />
+                <div className="texas-portal-brand text-left">
+                  <p>Texas Team Portal</p>
+                  <h1>Dirty South Dandiya</h1>
+                </div>
+              </div>
+            ) : (
+              <h1 className="text-4xl md:text-5xl font-cormorant text-white glow-text-intense text-center sm:text-left">
+                {getHeaderTitle()}
+              </h1>
+            )}
+            {teamId !== 'texas' && userType === 'team' && hogwartsHouse && (
               <div className={`${houseColorClass} bg-opacity-40 backdrop-blur-sm px-4 py-2 rounded-lg border-2 border-white/20 shadow-lg transform hover:scale-105 transition-all duration-300`}>
                 <span className="text-xl font-cormorant text-white">Country Club: {hogwartsHouse}</span>
               </div>

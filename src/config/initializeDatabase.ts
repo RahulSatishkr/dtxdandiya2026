@@ -598,6 +598,33 @@ export const INITIAL_LIAISONS = {
   ]
 } as const;
 
+export const createInitialTeamData = (teamId: TeamId): TeamInfo => ({
+  displayName: TEAM_DISPLAY_NAMES[teamId],
+  announcements: [],
+  information: {
+    liaisons: INITIAL_LIAISONS[teamId].map((liaison) => ({ ...liaison })),
+    tech: { ...TECH_INFO },
+    venue: { ...VENUE_INFO },
+    hotel: { ...HOTEL_INFO },
+  },
+  techVideo: {
+    title: 'Tech Time Video',
+    youtubeUrl: '',
+    driveUrl: '',
+    description: '',
+    isPublished: false,
+  },
+  schedule: {
+    ...INITIAL_SCHEDULE,
+    friday: [],
+    saturdayTech: [],
+    saturdayPreShow: [],
+    saturdayShow: [],
+    saturdayPostShow: { placing: [], nonPlacing: [] },
+  },
+  nearbyLocations: [],
+});
+
 export const initializeTeamData = async () => {
   try {
     for (const teamId of TEAM_IDS) {
@@ -605,25 +632,7 @@ export const initializeTeamData = async () => {
       const snapshot = await get(teamRef);
       
       if (!snapshot.exists()) {
-      await set(teamRef, {
-        displayName: TEAM_DISPLAY_NAMES[teamId],
-          announcements: [],
-          information: {
-            liaisons: INITIAL_LIAISONS[teamId],
-            tech: TECH_INFO,
-            venue: VENUE_INFO,
-            hotel: HOTEL_INFO
-        },
-        techVideo: {
-            title: 'Tech Time Video',
-          youtubeUrl: '',
-            driveUrl: '',
-            description: '',
-            isPublished: false
-          },
-          schedule: INITIAL_SCHEDULE,
-        nearbyLocations: []
-      });
+        await set(teamRef, createInitialTeamData(teamId));
         console.log(`Initialized data for team: ${TEAM_DISPLAY_NAMES[teamId]}`);
       }
     }

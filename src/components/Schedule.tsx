@@ -25,44 +25,11 @@ const saturdaySchedule: ScheduleItem[] = [
   { what: "Afterparty", where: "The Reserve", when: "10:00 PM" },
 ];
 
-// Magical floating element
-const FloatingElement = ({ className = "", delay = 0 }: { className?: string, delay?: number }) => (
-  <motion.div
-    className={`absolute pointer-events-none ${className}`}
-    initial={{ opacity: 0, scale: 0.5 }}
-    animate={{
-      opacity: [0, 0.4, 0],
-      scale: [0.8, 1.2, 0.8],
-      y: [-15, 5, -15]
-    }}
-    transition={{
-      duration: 6,
-      delay,
-      repeat: Infinity,
-      ease: "easeInOut"
-    }}
-  >
-    <div className="text-[#C5A572]/60 text-3xl">🏆</div>
-  </motion.div>
-);
-
 export default function Schedule() {
   const [activeDay, setActiveDay] = useState<'friday' | 'saturday'>('friday');
 
   return (
     <div className="w-full max-w-4xl mx-auto relative">
-      {/* Magical Background Elements */}
-      <div className="absolute inset-0 overflow-hidden z-10">
-        {/* Floating Elements */}
-        <FloatingElement className="top-20 left-20" delay={0} />
-        <FloatingElement className="top-40 right-40" delay={2} />
-        <FloatingElement className="bottom-40 left-1/4" delay={4} />
-        <FloatingElement className="top-1/2 right-1/4" delay={1} />
-        <FloatingElement className="bottom-20 right-20" delay={3} />
-      </div>
-
-      
-
       {/* Content */}
       <div className="relative z-20">
         {/* Tabs */}

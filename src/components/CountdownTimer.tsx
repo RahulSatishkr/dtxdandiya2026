@@ -1,55 +1,52 @@
 import { useEffect, useState } from 'react';
+import { EVENT_DATE } from '../config/event';
+
+function calculateTimeLeft() {
+  const difference = Math.max(0, EVENT_DATE.getTime() - Date.now());
+
+  return {
+    days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+    hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+    minutes: Math.floor((difference / 1000 / 60) % 60),
+    seconds: Math.floor((difference / 1000) % 60),
+  };
+}
 
 export default function CountdownTimer() {
-  const [timeLeft, setTimeLeft] = useState({
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0
-  });
+  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft);
 
   useEffect(() => {
-    const targetDate = new Date('2026-02-07T17:30:00-06:00');
-
     const timer = setInterval(() => {
-      const now = new Date();
-      const difference = targetDate.getTime() - now.getTime();
+      const nextTimeLeft = calculateTimeLeft();
+      setTimeLeft(nextTimeLeft);
 
-      if (difference <= 0) {
+      if (Object.values(nextTimeLeft).every((value) => value === 0)) {
         clearInterval(timer);
-        return;
       }
-
-      const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
-      const minutes = Math.floor((difference / 1000 / 60) % 60);
-      const seconds = Math.floor((difference / 1000) % 60);
-
-      setTimeLeft({ days, hours, minutes, seconds });
     }, 1000);
 
     return () => clearInterval(timer);
   }, []);
 
+  const countdownUnits = [
+    { label: 'Days', value: timeLeft.days },
+    { label: 'Hrs', value: timeLeft.hours },
+    { label: 'Mins', value: timeLeft.minutes },
+    { label: 'Secs', value: timeLeft.seconds },
+  ];
+
   return (
-    <div className="flex flex-col items-center">
-      <div className="flex gap-7 text-white text-center mb-1">
-        <div className="text-5xl font-light glow-text tracking-wider">
-          {timeLeft.days.toString().padStart(2, '0')}
+    <div className="grid grid-cols-4 gap-3 sm:gap-7 text-center text-white">
+      {countdownUnits.map(({ label, value }) => (
+        <div key={label} className="flex min-w-14 sm:min-w-20 flex-col items-center">
+          <div className="text-4xl sm:text-5xl font-light glow-text tabular-nums tracking-wider">
+            {value.toString().padStart(2, '0')}
+          </div>
+          <div className="mt-2 text-[0.65rem] sm:text-xs uppercase tracking-[0.22em] sm:tracking-[0.35em] text-white/80 font-roca">
+            {label}
+          </div>
         </div>
-        <div className="text-5xl font-light glow-text tracking-wider">
-          {timeLeft.hours.toString().padStart(2, '0')}
-        </div>
-        <div className="text-5xl font-light glow-text tracking-wider">
-          {timeLeft.minutes.toString().padStart(2, '0')}
-        </div>
-        <div className="text-5xl font-light glow-text tracking-wider">
-          {timeLeft.seconds.toString().padStart(2, '0')}
-        </div>
-      </div>
-      <div className="text-2x1 tracking-[0.5em] text-white uppercase glow-text font-roca">
-        days  hrs  mins  secs
-      </div>
+      ))}
     </div>
   );
 }

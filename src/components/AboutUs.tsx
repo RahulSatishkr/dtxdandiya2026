@@ -1,55 +1,29 @@
-import React from 'react';
-
 export default function AboutUs() {
   return (
-    <section className="py-20 bg-[#183331] relative overflow-hidden">
-      <div className="max-w-6xl mx-auto px-4">
-        <h2 className="text-6xl md:text-7xl font-edwardian text-center text-white mb-16 glow-text-intense mx-auto"
-          style={{ wordSpacing: '0.1em' }}>          
-          About Us
-        </h2>
-        
-        <div className="flex flex-col items-center">
-          {/* Team Image */}
-          <div className="mb-12 relative w-full max-w-4xl">
-            <img 
-              src="/assets/team/team.JPG" 
-              alt="DTX Dandiya Team" 
-              className="w-full rounded-lg shadow-2xl"
+    <section className="homepage-section bg-[#050507] relative overflow-hidden">
+      <div className="max-w-6xl mx-auto px-5 sm:px-8">
+        <header className="homepage-section-header">
+          <p>Our story</p>
+          <h2>About DTX Dandiya</h2>
+        </header>
+
+        <div className="grid items-center gap-10 lg:grid-cols-[1.2fr_.8fr] lg:gap-16">
+          <div className="relative w-full">
+            <img
+              src="/assets/team/team.JPG"
+              alt="DTX Dandiya Team"
+              className="aspect-[4/3] w-full rounded-sm object-cover"
             />
-            {/* Magical Frame */}
-            <div className="absolute -inset-1">
-              {/* Corner Decorations */}
-              <div className="absolute -top-2 -left-2 w-8 h-8 border-t-2 border-l-2 border-[#ffb1ba] rounded-tl-lg"></div>
-              <div className="absolute -top-2 -right-2 w-8 h-8 border-t-2 border-r-2 border-[#ffb1ba] rounded-tr-lg"></div>
-              <div className="absolute -bottom-2 -left-2 w-8 h-8 border-b-2 border-l-2 border-[#ffb1ba] rounded-bl-lg"></div>
-              <div className="absolute -bottom-2 -right-2 w-8 h-8 border-b-2 border-r-2 border-[#ffb1ba] rounded-br-lg"></div>
-            </div>
+            <span className="absolute -bottom-3 -right-3 h-20 w-20 border-b border-r border-red-500/60" aria-hidden="true" />
           </div>
 
-          {/* Text Section */}
-          <div className="max-w-3xl mx-auto text-center">
-            {/* Text Content */}
-            <div className="relative px-8 py-6">
-              <p className="text-lg leading-relaxed text-white/90 font-cormorant tracking-wide">
-                We welcome you to <span className="font-['Harry_Potter'] text-[#ffb1ba] text-2xl">DTX Dandiya</span>. 
-                We are Dallas's premier Raas Garba competition, bringing together some of the very best collegiate Raas teams 
-                from around the country. With every graceful twirl and resonating drumbeat, we aim to create an immersive 
-                experience that not only honors our heritage but also fosters a sense of togetherness. Join us in embracing 
-                diversity, the joy of dance, and the spirit of community as we weave tradition into the colorful fabric of 
-                our shared heritage.
-              </p>
-            </div>
+          <div className="about-editorial-copy">
+            <p className="about-lead">Dallas’s collegiate Raas Garba competition, built around exceptional dance and a shared cultural tradition.</p>
+            <p>DTX Dandiya brings together outstanding teams from across the country for a weekend of performance, community, and competition.</p>
+            <p>Every twirl and drumbeat honors our heritage while creating space for new friendships, joyful celebration, and a community that lasts beyond the stage.</p>
           </div>
         </div>
       </div>
-
-      {/* Floating Magical Elements */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-20 w-3 h-3 bg-[#C5A572]/20 rounded-full animate-twinkle"></div>
-        <div className="absolute bottom-1/4 right-20 w-3 h-3 bg-[#C5A572]/20 rounded-full animate-twinkle" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute top-1/2 left-1/3 w-3 h-3 bg-[#C5A572]/20 rounded-full animate-twinkle" style={{ animationDelay: '2s' }}></div>
-      </div>
     </section>
   );
-} 
+}

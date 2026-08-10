@@ -6,11 +6,10 @@ export default function NotFound() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#183331] flex items-center justify-center bg-cover bg-center relative overflow-hidden"
-         style={{ backgroundImage: "url('/assets/backgrounds/home_page.jpg')" }}>
+    <div className="min-h-screen bg-[#050507] flex items-center justify-center bg-cover bg-center relative overflow-hidden stranger-portal-bg">
       
       {/* Background Effects */}
-      <div className="absolute inset-0 bg-[#183331]/70 backdrop-blur-sm"></div>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
 
       <div className="relative z-10 max-w-2xl mx-4 text-center">
         {/* Back Button */}

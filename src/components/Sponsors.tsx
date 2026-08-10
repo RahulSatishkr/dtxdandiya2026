@@ -45,12 +45,14 @@ const SPONSORS = [
   },
 ];
 
+const CARD_ROTATIONS = [-2.4, 1.8, -1.2, 2.6, 1.1, -2, 2.2, -1.6];
+
 export default function Sponsors() {
   return (
-    <div className="relative py-16 overflow-hidden bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-black to-black]">
+    <div className="homepage-section relative overflow-hidden bg-[#050507]">
       {/* Magical Background Effects */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[#183331]">
+        <div className="absolute inset-0 bg-[#050507]">
           {/* Ambient Light Effect */}
           {/*<div className="absolute inset-0 opacity-40"
             style={{
@@ -66,49 +68,53 @@ export default function Sponsors() {
       <div className="relative z-10 container mx-auto px-4 max-w-6xl">
         {/* Title */}
         <motion.div 
-          className="text-center mb-16"
+          className="homepage-section-header"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
         >
-          <h2 className="text-6xl md:text-7xl font-edwardian text-center text-white mb-16 glow-text-intense mx-auto"
-          style={{ wordSpacing: '0.1em' }}>
-            Supporting Partners
-            <div className="absolute -inset-x-8 -inset-y-4 bg-[gradient-to-r from-[#ffb1ba]-500/0 via-[#ffb1ba]-500/10 to-[#ffb1ba]-500/0 rounded-lg blur-lg -z-10]"></div>
-            {/*gradient-to-r from-blue-500/0 via-blue-500/10 to-blue-500/0 rounded-lg blur-lg -z-10*/}
-          </h2>
+          <p>With support from</p>
+          <h2>Sponsors</h2>
         </motion.div>
 
-        {/* Sponsors Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 md:gap-12">
+        {/* Investigation-style partner board */}
+        <div className="partner-pinboard">
+          <div className="evidence-thread thread-one" aria-hidden="true" />
+          <div className="evidence-thread thread-two" aria-hidden="true" />
+          <div className="evidence-thread thread-three" aria-hidden="true" />
+          <div className="pinboard-label" aria-hidden="true">Friends of DTX · 2027</div>
+          <div className="partner-grid">
           {SPONSORS.map((sponsor, index) => (
             <motion.div
               key={sponsor.name}
-              className="relative group"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              className="partner-card-wrap group"
+              style={{ rotate: `${CARD_ROTATIONS[index]}deg` }}
+              initial={{ opacity: 0, y: 28, rotate: CARD_ROTATIONS[index] * 2 }}
+              whileInView={{ opacity: 1, y: 0, rotate: CARD_ROTATIONS[index] }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
             >
-              <div className="absolute -inset-[2px] bg-gradient-to-r from-[#ffb1ba]/0 via-[#ffb1ba]/20 to-[#ffb1ba]/0 rounded-lg opacity-0 group-hover:opacity-100 blur-lg transition-all duration-700"></div>
+              <span className="pushpin" aria-hidden="true" />
               <a
                 href={sponsor.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block relative bg-black/20 backdrop-blur-sm rounded-lg p-4 transition-all duration-500 group-hover:bg-black/30"
+                className="partner-paper"
               >
-                <div className="relative aspect-square flex items-center justify-center p-3">
+                <div className="partner-logo-area">
                   <img
                     src={sponsor.logo}
                     alt={sponsor.name}
-                    className="max-w-[80%] max-h-[80%] w-auto h-auto object-contain opacity-90 group-hover:opacity-100 transition-all duration-500 group-hover:scale-105"
+                    className="partner-logo"
                   />
-                  <FaExternalLinkAlt className="absolute top-2 right-2 text-blue-400/0 group-hover:text-[#ffb1ba]/70 transition-all duration-500" />
+                  <FaExternalLinkAlt className="partner-external-icon" />
                 </div>
+                <span className="partner-name">{sponsor.name}</span>
               </a>
             </motion.div>
           ))}
+          </div>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase, connectDatabaseEmulator } from 'firebase/database';
 import { getAnalytics } from 'firebase/analytics';
+import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCq_Y1NlXxCUPl1S__I_lzuCwl6hbFU5Ig",
@@ -16,6 +17,7 @@ const firebaseConfig = {
 let app;
 let database;
 let analyticsInstance;
+let authInstance;
 
 try {
   // Initialize Firebase
@@ -23,14 +25,16 @@ try {
   
   // Initialize Realtime Database
   database = getDatabase(app);
+  authInstance = getAuth(app);
   
   // Initialize Analytics only in browser environment
   if (typeof window !== 'undefined') {
     analyticsInstance = getAnalytics(app);
   }
 
-  // Connect to emulator in development
-  if (process.env.NODE_ENV === 'development') {
+  // Use the local emulator only when it has been explicitly enabled.
+  // Normal local development connects to the configured Firebase database.
+  if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
     connectDatabaseEmulator(database, 'localhost', 9000);
   }
 } catch (error) {
@@ -40,4 +44,5 @@ try {
 
 // Export instances
 export const db = database;
-export const analytics = analyticsInstance; 
+export const analytics = analyticsInstance;
+export const auth = authInstance;
