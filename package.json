@@ -17,6 +17,8 @@
     "@fullcalendar/react": "^6.1.15",
     "@fullcalendar/timegrid": "^6.1.15",
     "@types/react-scroll": "^1.8.10",
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "date-fns": "^4.1.0",
     "firebase": "^10.7.2",
     "framer-motion": "^11.0.3",
