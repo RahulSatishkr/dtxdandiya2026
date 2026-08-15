@@ -63,6 +63,15 @@
   font-display: swap;
 }
 
+/* Stranger Things font by FontGet.com; see /fonts/StrangerThings-LICENSE.txt. */
+@font-face {
+  font-family: 'Stranger Things';
+  src: url('/fonts/StrangerThings-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /*@font-face {
     font-family: "Harry Potter";
     src: url("https://db.onlinewebfonts.com/t/0421d4186d6efbfc5331fe180895e780.eot");
@@ -1319,11 +1328,12 @@ body {
 .stranger-title {
   display: flex;
   flex-direction: column;
+  align-items: center;
   margin: 0;
   color: #070709;
-  font-family: 'Cormorant SC', serif;
+  font-family: 'Stranger Things', 'Cormorant SC', serif;
   font-size: clamp(4.8rem, 13vw, 10.5rem);
-  font-weight: 700;
+  font-weight: 400;
   line-height: .58;
   letter-spacing: -.035em;
   text-transform: uppercase;
@@ -1332,17 +1342,28 @@ body {
 }
 
 .stranger-title span:first-child {
+  position: relative;
   font-size: .58em;
-  letter-spacing: .3em;
-  padding-left: .3em;
+  letter-spacing: .18em;
+  padding-left: .18em;
   margin-bottom: .42em;
 }
 
-.stranger-title span:last-child {
-  border-top: 3px solid #ef233c;
-  border-bottom: 3px solid #ef233c;
-  padding: .14em .12em .2em;
+.stranger-title span:first-child::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -.2em;
+  width: 100%;
+  border-bottom: 4px solid #ef233c;
 }
+
+.stranger-title span:last-child {
+  position: relative;
+  border-bottom: 4px solid #ef233c;
+  padding: .14em .08em .2em;
+}
+
 
 .signal-lockup {
   margin-top: 1.4rem;
