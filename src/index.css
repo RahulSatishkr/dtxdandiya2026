@@ -1445,7 +1445,9 @@ body {
 }
 
 @media (max-width: 640px) {
-  .stranger-hero { background-position: 55% center; }
+  /* Keep the Dallas skyline, which sits on the left of the wide hero art,
+     inside the much narrower mobile crop. */
+  .stranger-hero { background-position: 14% center; }
   .stranger-title { font-size: clamp(4rem, 22vw, 7rem); }
   .retro-logo { width: 112vw; max-width: none; }
   .hero-kicker, .hero-subtitle { letter-spacing: .18em; }
