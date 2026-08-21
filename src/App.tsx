@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, NavLink, Routes, Route } from 'react-router-dom';
 import CountdownTimer from './components/CountdownTimer';
 import AboutUs from './components/AboutUs';
 import OrderOfPhoenix from './components/OrderOfPhoenix';
@@ -11,64 +11,33 @@ import NotFound from './components/NotFound';
 import AdminDashboard from './components/TeamPortal/AdminDashboard';
 import { motion, useReducedMotion, useScroll, useSpring, useTransform } from 'framer-motion';
 import type { ReactNode } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 const navigationItems = [
-  { label: 'Home', href: '#home' },
-  { label: 'About', href: '#about' },
-  { label: 'The Party', href: '#team' },
-  { label: 'Resources', href: '#resources' },
-  { label: 'Sponsors', href: '#sponsors' },
+  { label: 'Home', href: '/' },
+  { label: 'About Us', href: '/about' },
+  { label: 'The Board', href: '/board' },
+  { label: 'Quick Info', href: '/quick-info' },
+  { label: 'Sponsors', href: '/sponsors' },
 ];
 
-function CornerMenu() {
-  const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsOpen(false);
-    };
-
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, []);
-
+function SiteTabs() {
   return (
-    <>
-      <button
-        type="button"
-        className={`corner-menu-button ${isOpen ? 'is-open' : ''}`}
-        aria-label={isOpen ? 'Close navigation' : 'Open navigation'}
-        aria-expanded={isOpen}
-        aria-controls="corner-navigation"
-        onClick={() => setIsOpen((open) => !open)}
-      >
-        <span /><span /><span />
-      </button>
-
-      <motion.nav
-        id="corner-navigation"
-        className="corner-navigation"
-        initial={false}
-        animate={isOpen ? 'open' : 'closed'}
-        variants={{
-          open: { opacity: 1, x: 0, visibility: 'visible' },
-          closed: { opacity: 0, x: 36, transitionEnd: { visibility: 'hidden' } },
-        }}
-        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <p>Choose your destination</p>
-        {navigationItems.map((item, index) => (
-          <a key={item.href} href={item.href} onClick={() => setIsOpen(false)}>
-            <span>{String(index).padStart(2, '0')}</span>
+    <nav className="site-tabs" aria-label="Main navigation">
+      <div className="site-tabs-track">
+        {navigationItems.map((item) => (
+          <NavLink
+            key={item.href}
+            to={item.href}
+            end={item.href === '/'}
+            className={({ isActive }) => isActive ? 'site-tab is-active' : 'site-tab'}
+          >
             {item.label}
-          </a>
+          </NavLink>
         ))}
-        <a href="/team-portal/login" className="portal-menu-link">
-          <span>05</span>Team Portal
-        </a>
-      </motion.nav>
-    </>
+        <NavLink to="/team-portal/login" className="site-tab portal-tab">Team Portal</NavLink>
+      </div>
+    </nav>
   );
 }
 
@@ -127,7 +96,7 @@ function HomePage() {
   return (
     <div className="min-h-screen bg-[#050507] stranger-site">
       <ScrollProgress />
-      <CornerMenu />
+      <SiteTabs />
       {/* Hero Section */}
       <div ref={storyRef} id="home" className="apple-scroll-story">
         <motion.div
@@ -215,19 +184,21 @@ function HomePage() {
         </motion.div>
       </div>
 
-      {/* About Us Section */}
-      <ScrollReveal id="about" className="scroll-chapter"><AboutUs /></ScrollReveal>
-
-      {/* Order of Phoenix Section */}
-      <ScrollReveal id="team" className="scroll-chapter"><OrderOfPhoenix /></ScrollReveal>
-
-      {/* Resources Section */}
-      <ScrollReveal id="resources" className="scroll-chapter"><Resources /></ScrollReveal>
-
-      {/* Sponsors Section */}
-      <ScrollReveal id="sponsors" className="scroll-chapter"><Sponsors /></ScrollReveal>
-
       <ScrollReveal><Footer /></ScrollReveal>
+    </div>
+  );
+}
+
+function ContentPage({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#050507] stranger-site content-page">
+      <SiteTabs />
+      <main>{children}</main>
+      <Footer />
     </div>
   );
 }
@@ -237,6 +208,10 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/about" element={<ContentPage><AboutUs /></ContentPage>} />
+        <Route path="/board" element={<ContentPage><OrderOfPhoenix /></ContentPage>} />
+        <Route path="/quick-info" element={<ContentPage><Resources /></ContentPage>} />
+        <Route path="/sponsors" element={<ContentPage><Sponsors /></ContentPage>} />
         <Route path="/team-portal/login" element={<Login />} />
         <Route path="/team-portal/dashboard" element={<Dashboard />} />
         <Route path="/team-portal/admin" element={<AdminDashboard />} />
