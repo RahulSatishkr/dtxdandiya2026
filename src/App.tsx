@@ -161,7 +161,7 @@ function HomePage() {
             </a>
 
             <a
-              href="https://www.youtube.com/live/M6yG0KuC7gw?si=5mOY4XecCcl2sc5j"
+              href="https://youtube.com/live/RpKZXHUP-sM?feature=share"
               target="_blank"
               rel="noopener noreferrer"
               className="
