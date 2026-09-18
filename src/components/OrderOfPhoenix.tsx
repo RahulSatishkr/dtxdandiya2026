@@ -7,16 +7,15 @@ interface Committee {
 }
 
 const committees: Committee[] = [
-  { name: "Directors", image: "/assets/team/Directors.jpg", title: "Commanding the Mission" },
-  { name: "Logistics", image: "/assets/team/Logistics.jpeg", title: "Keeping the Gate Contained" },
-  { name: "Registration", image: "/assets/team/Registration.jpg", title: "Clearance to Enter" },
-  { name: "Head Liaison", image: "/assets/team/HeadLiaisons.jpg", title: "Keeping the Party Connected" },
-  { name: "Tech/External", image: "/assets/team/Tech.jpg", title: "Tuning the Signal" },
-  { name: "Fundraising", image: "/assets/team/Fundraising.jpeg", title: "Powering the Operation" },
-  { name: "Hospitality", image: "/assets/team/Hospitality.jpeg", title: "Safe Haven from the Upside Down" },
-  { name: "Mixer/Social", image: "/assets/team/Mixer.jpeg", title: "Gathering the Party" },
-  { name: "Advisors", image: "/assets/team/Advisors.jpg", title: "Guidance from the Other Side" },
-  { name: "Afterparty", image: "/assets/team/Afterparty.jpeg", title: "After Curfew" },
+  { name: "Directors", image: "/assets/team/Directors-2027.jpeg", title: "Commanding the Mission" },
+  { name: "Logistics", image: "/assets/team/Logistics-2027.jpg", title: "Keeping the Gate Contained" },
+  { name: "Registration", image: "/assets/team/Registration-2027.jpeg", title: "Clearance to Enter" },
+  { name: "Head Liaison", image: "/assets/team/Head-Liaison-2027.jpeg", title: "Keeping the Party Connected" },
+  { name: "Tech", image: "/assets/team/Tech-2027.jpg", title: "Tuning the Signal" },
+  { name: "Finance", image: "/assets/team/Finance-2027.jpg", title: "Powering the Operation" },
+  { name: "Hospitality", image: "/assets/team/Hospitality-2027.jpeg", title: "Safe Haven from the Upside Down" },
+  { name: "Mixer", image: "/assets/team/Mixer-2027.jpeg", title: "Gathering the Party" },
+  { name: "Advisors", image: "/assets/team/Advisors-2027.jpeg", title: "Guidance from the Other Side" },
 ];
 
 export default function OrderOfPhoenix() {

@@ -20,7 +20,7 @@ interface AnnouncementFormData {
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'announcements' | 'information' | 'tech-time-video' | 'schedule' | 'reports'>('announcements');
+  const [activeTab, setActiveTab] = useState<'announcements' | 'information' | 'tech-time-video' | 'schedule' | 'reports' | 'applications'>('announcements');
   const [teamData, setTeamData] = useState<Record<TeamId, TeamInfo>>(() => ({
     texas: createInitialTeamData('texas') as TeamInfo,
   } as Record<TeamId, TeamInfo>));
@@ -50,6 +50,8 @@ const AdminDashboard: React.FC = () => {
   const [selectedScheduleTarget, setSelectedScheduleTarget] = useState<'judges' | TeamId>('texas');
   const [techVideoFeedback, setTechVideoFeedback] = useState<Partial<Record<TeamId, 'published' | 'error'>>>({});
   const [techVideoDrafts, setTechVideoDrafts] = useState<Partial<Record<TeamId, string>>>({});
+  const [teamApplicationUrl, setTeamApplicationUrl] = useState('');
+  const [isSavingApplicationUrl, setIsSavingApplicationUrl] = useState(false);
 
   const getTechVideoInputValue = (teamId: TeamId) => {
     const value = techVideoDrafts[teamId] ?? teamData[teamId]?.techVideo?.driveUrl ?? '';
@@ -80,6 +82,36 @@ const AdminDashboard: React.FC = () => {
       }
     });
   }, []);
+
+  useEffect(() => onValue(ref(db, 'publicSettings/teamApplicationUrl'), (snapshot) => {
+    setTeamApplicationUrl(typeof snapshot.val() === 'string' ? snapshot.val() : '');
+  }), []);
+
+  const handleSaveApplicationUrl = async () => {
+    const normalizedUrl = teamApplicationUrl.trim();
+
+    if (normalizedUrl) {
+      try {
+        const parsedUrl = new URL(normalizedUrl);
+        if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') throw new Error('Invalid protocol');
+      } catch {
+        toast.error('Enter a valid Google Form URL, including https://');
+        return;
+      }
+    }
+
+    setIsSavingApplicationUrl(true);
+    try {
+      await set(ref(db, 'publicSettings/teamApplicationUrl'), normalizedUrl || null);
+      setTeamApplicationUrl(normalizedUrl);
+      toast.success(normalizedUrl ? 'Application link saved.' : 'Application link removed.');
+    } catch (error) {
+      console.error('Error updating team application URL:', error);
+      toast.error('Could not update the application link.');
+    } finally {
+      setIsSavingApplicationUrl(false);
+    }
+  };
 
   useEffect(() => {
     if (selectedTeamForAnnouncements) {
@@ -1095,6 +1127,7 @@ const AdminDashboard: React.FC = () => {
               ['information', 'Information'],
               ['schedule', 'Schedule'],
               ['tech-time-video', 'Tech Time Video'],
+              ['applications', 'Applications'],
               ['reports', 'Reports']
             ].map(([key, label]) => (
               <button
@@ -1316,6 +1349,48 @@ const AdminDashboard: React.FC = () => {
                               </div>
               ))}
             </div>
+          )}
+          {activeTab === 'applications' && (
+            <section className="bg-black/40 backdrop-blur-sm rounded-xl p-6 border border-blue-500/20">
+              <h2 className="text-3xl sm:text-4xl font-cormorant text-white">Team Applications</h2>
+              <p className="mt-2 text-sm text-blue-200/60">
+                Save the Google Form link for audition-video applications. The homepage application button is currently hidden.
+              </p>
+              <div className="mt-6 max-w-3xl">
+                <label htmlFor="team-application-url" className="block text-blue-300 text-sm font-medium mb-2">
+                  Google Form URL
+                </label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    id="team-application-url"
+                    type="url"
+                    value={teamApplicationUrl}
+                    onChange={(event) => setTeamApplicationUrl(event.target.value)}
+                    placeholder="https://forms.gle/..."
+                    className="flex-1 bg-black/40 border border-blue-500/30 rounded-lg p-3 text-white placeholder-white/30 focus:outline-none focus:border-blue-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveApplicationUrl}
+                    disabled={isSavingApplicationUrl}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                  >
+                    <FiSave aria-hidden="true" />
+                    {isSavingApplicationUrl ? 'Saving…' : 'Save Link'}
+                  </button>
+                </div>
+                {teamApplicationUrl && (
+                  <a
+                    href={teamApplicationUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 mt-4 text-blue-300 hover:text-blue-200 transition-colors"
+                  >
+                    Preview application form <FaExternalLinkAlt aria-hidden="true" />
+                  </a>
+                )}
+              </div>
+            </section>
           )}
           {activeTab === 'schedule' && (
             <div className="space-y-8">

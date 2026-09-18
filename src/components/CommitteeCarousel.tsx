@@ -4,52 +4,47 @@ import { useState, useEffect } from 'react';
 const committees = [
   {
     name: 'Directors',
-    image: "/assets/team/Directors.jpg",
+    image: "/assets/team/Directors-2027.jpeg",
     description: 'Leading the magic'
   },
   {
     name: 'Logistics',
-    image: "/assets/team/Logistics.jpeg",
+    image: "/assets/team/Logistics-2027.jpg",
     description: 'Making it happen'
   },
   {
     name: 'Registration',
-    image: "/assets/team/Registration.jpg",
+    image: "/assets/team/Registration-2027.jpeg",
     description: 'Managing participants'
   },
   {
-    name: 'Head Liaisons',
-    image: "/assets/team/HeadLiaisons.jpg",
+    name: 'Head Liaison',
+    image: "/assets/team/Head-Liaison-2027.jpeg",
     description: 'Team coordination'
   },
   {
-    name: 'Tech/External',
-    image: "./assets/team/Tech.jpg",
+    name: 'Tech',
+    image: "/assets/team/Tech-2027.jpg",
     description: 'Technical support'
   },
   {
-    name: 'Fundraising',
-    image: "/assets/team/Fundraising.jpeg",
+    name: 'Finance',
+    image: "/assets/team/Finance-2027.jpg",
     description: 'Resource gathering'
   },
   {
-    name: 'Afterparty',
-    image: "/assets/team/Afterparty.jpeg",
-    description: 'Celebration planning'
-  },
-  {
     name: 'Hospitality',
-    image: "/assets/team/Hospitality.jpeg",
+    image: "/assets/team/Hospitality-2027.jpeg",
     description: 'Guest experience'
   },
   {
-    name: 'Mixer/Social',
-    image: "/assets/team/Mixer.jpeg",
+    name: 'Mixer',
+    image: "/assets/team/Mixer-2027.jpeg",
     description: 'Event socializing'
   },
   {
     name: 'Advisors',
-    image: "/assets/team/Advisors.jpg",
+    image: "/assets/team/Advisors-2027.jpeg",
     description: 'Brand outreach'
   }
 ];

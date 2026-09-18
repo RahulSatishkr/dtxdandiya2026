@@ -17,7 +17,6 @@ const navigationItems = [
   { label: 'Home', href: '/' },
   { label: 'About Us', href: '/about' },
   { label: 'The Board', href: '/board' },
-  { label: 'Quick Info', href: '/quick-info' },
   { label: 'Sponsors', href: '/sponsors' },
 ];
 

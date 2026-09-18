@@ -19,6 +19,13 @@
       ".read": "auth != null",
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
     },
+    "publicSettings": {
+      ".read": true,
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      "teamApplicationUrl": {
+        ".validate": "!newData.exists() || newData.isString()"
+      }
+    },
     "reports": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
       "$reportId": {
