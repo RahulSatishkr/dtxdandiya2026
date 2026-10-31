@@ -77,11 +77,17 @@ export default function OrderOfPhoenix() {
                   >
                     {/* Image Container with Dynamic Aspect Ratio */}
                     <div className="relative pt-[100%] md:pt-[75%]">
-                      <img 
-                        src={committees[activeIndex].image}
-                        alt={committees[activeIndex].name}
-                        className="absolute inset-0 w-full h-full object-cover"
-                      />
+                      {committees.map((committee, index) => (
+                        <img
+                          key={committee.name}
+                          src={committee.image}
+                          alt={committee.name}
+                          aria-hidden={index !== activeIndex}
+                          className={`absolute inset-0 w-full h-full object-cover ${
+                            index === activeIndex ? 'visible' : 'invisible'
+                          }`}
+                        />
+                      ))}
                       {/* Image Overlay */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30"></div>
                     </div>
