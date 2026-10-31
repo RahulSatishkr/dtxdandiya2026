@@ -23,7 +23,7 @@ const committees = [
     description: 'Team coordination'
   },
   {
-    name: 'Tech',
+    name: 'Events Operations',
     image: "/assets/team/Tech-2027.jpg",
     description: 'Technical support'
   },
