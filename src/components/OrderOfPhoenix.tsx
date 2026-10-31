@@ -23,16 +23,32 @@ export default function OrderOfPhoenix() {
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    let cancelled = false;
+    let fadeTimer: ReturnType<typeof setTimeout> | undefined;
+    const nextIndex = (activeIndex + 1) % committees.length;
+    const nextImage = new Image();
+    nextImage.src = committees[nextIndex].image;
+    // Start loading immediately and handle failures before the display timer fires.
+    const imageReady = nextImage.decode().then(() => true, () => false);
+
+    const timer = setTimeout(async () => {
+      const ready = await imageReady;
+      if (cancelled || !ready) return;
+
       setIsTransitioning(true);
-      setTimeout(() => {
-        setActiveIndex((prev) => (prev + 1) % committees.length);
+      fadeTimer = setTimeout(() => {
+        if (cancelled) return;
+        setActiveIndex(nextIndex);
         setIsTransitioning(false);
       }, 300);
-    }, 2000);
+    }, 1700);
 
-    return () => clearInterval(timer);
-  }, []);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      clearTimeout(fadeTimer);
+    };
+  }, [activeIndex]);
 
   return (
     <div className="homepage-section relative overflow-hidden bg-[#050507]">
