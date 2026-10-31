@@ -10,9 +10,9 @@ export default function AboutUs() {
         <div className="grid items-center gap-10 lg:grid-cols-[1.2fr_.8fr] lg:gap-16">
           <div className="relative w-full">
             <img
-              src="/assets/team/team.JPG"
-              alt="DTX Dandiya Team"
-              className="aspect-[4/3] w-full rounded-sm object-cover"
+              src="/assets/team/board-2027.jpg"
+              alt="DTX Dandiya full board"
+              className="aspect-[3/2] w-full rounded-sm object-cover"
             />
             <span className="absolute -bottom-3 -right-3 h-20 w-20 border-b border-r border-red-500/60" aria-hidden="true" />
           </div>

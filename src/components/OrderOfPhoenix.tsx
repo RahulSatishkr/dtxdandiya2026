@@ -28,8 +28,8 @@ export default function OrderOfPhoenix() {
       setTimeout(() => {
         setActiveIndex((prev) => (prev + 1) % committees.length);
         setIsTransitioning(false);
-      }, 500);
-    }, 5000);
+      }, 300);
+    }, 2000);
 
     return () => clearInterval(timer);
   }, []);
@@ -56,7 +56,7 @@ export default function OrderOfPhoenix() {
               <div className="flex flex-col md:flex-row">
                 {/* Image Display */}
                 <div className="relative w-full md:w-2/3 order-1 md:order-2">
-                  <div className={`transform transition-all duration-500 
+                  <div className={`transform transition-all duration-300 
                     ${isTransitioning ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}
                   >
                     {/* Image Container with Dynamic Aspect Ratio */}
@@ -74,7 +74,7 @@ export default function OrderOfPhoenix() {
 
                 {/* Committee Info */}
                 <div className="relative w-full md:w-1/3 min-w-0 overflow-hidden p-7 md:p-10 flex flex-col justify-center order-2 md:order-1 bg-[#0b0b0d]">
-                  <div className={`transform transition-all duration-500 ${isTransitioning ? 'opacity-0 translate-y-10' : 'opacity-100 translate-y-0'}`}>
+                  <div className={`transform transition-all duration-300 ${isTransitioning ? 'opacity-0 translate-y-10' : 'opacity-100 translate-y-0'}`}>
                     <p className="party-index">{String(activeIndex + 1).padStart(2, '0')} / {String(committees.length).padStart(2, '0')}</p>
                     <h3 className="committee-title font-cormorant text-white mb-4">
                       {committees[activeIndex].name}
